@@ -1,0 +1,91 @@
+
+# load training data
+print  "Loading training data..."
+x_train_left = np.genfromtxt('leftFeature.csv', delimiter=',')
+x_train_right = np.genfromtxt('rightFeature.csv', delimiter=',')
+
+train_labels_raw = np.genfromtxt('BinaryTrain_sbj_list.csv', delimiter=',', skip_header=1)
+y_train = train_labels_raw[:, 1]
+perf_left = []
+perf_right = []
+acc_left = []
+acc_right = []
+for i in range(5):
+
+
+
+
+ #feature selection
+ #print "feature selection..."
+ #from sklearn import metrics
+ #from sklearn.ensemble import ExtraTreesClassifier
+ #model = ExtraTreesClassifier()
+ #model.fit(x_train, y_train)
+ # display the relative importance of each attribute
+ #print(model.feature_importances_)
+
+# adaboost classifier
+# initialize the  (defaults to using shallow decision trees
+# as the weak learner to boost) and optimize parameters using random search
+
+ print "Training adaboost DT..."
+
+ bdt1 = AdaBoostClassifier(DecisionTreeClassifier(max_depth=1),
+                          n_estimators=300,learning_rate=0.8)
+ bdt2 = AdaBoostClassifier(DecisionTreeClassifier(max_depth=1),
+                          n_estimators=300,learning_rate=0.8)
+ bdt1.fit(x_train_left, y_train)
+ bdt2.fit(x_train_right, y_train)
+ print "Generating CV scores for Adaboost left feature training data..."
+
+ scores = cross_validation.cross_val_score(bdt1, x_train_left, y_train, cv=5)
+ print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
+ acc_left.append(scores.mean())
+
+ print "Generating CV scores for Adaboost all train data "
+ scores = cross_validation.cross_val_score(bdt2, x_train_right, y_train, cv=5)
+ print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
+ acc_right.append(scores.mean())
+
+ AUC_Ada_left = []
+
+ for train_index, test_index in cross_validation.KFold(n=150, n_folds=5, shuffle=True,
+                               random_state=None):
+    x_train_cv, x_test_cv = x_train_left[train_index], x_train_left[test_index]
+    y_train_cv, y_test_cv = y_train[train_index], y_train[test_index]
+    bdt_cv = AdaBoostClassifier(DecisionTreeClassifier(max_depth=1),
+                          n_estimators=300,learning_rate=0.8)
+    bdt_cv.fit(x_train_cv, y_train_cv)
+    predictionAda = bdt_cv.predict(x_test_cv)
+
+    AUC_Ada_left.append(roc_auc_score(y_test_cv, predictionAda))
+
+
+ print np.mean(AUC_Ada_left)
+ perf_left.append(np.mean(AUC_Ada_left))
+
+
+
+ AUC_Ada_right = []
+
+ for train_index, test_index in cross_validation.KFold(n=150, n_folds=5, shuffle=True,
+                               random_state=None):
+    x_train_cv, x_test_cv = x_train_right[train_index], x_train_right[test_index]
+    y_train_cv, y_test_cv = y_train[train_index], y_train[test_index]
+    bdt_cv = AdaBoostClassifier(DecisionTreeClassifier(max_depth=1),
+                          n_estimators=300,learning_rate=0.8)
+    bdt_cv.fit(x_train_cv, y_train_cv)
+    predictionAda = bdt_cv.predict(x_test_cv)
+
+    AUC_Ada_right.append(roc_auc_score(y_test_cv, predictionAda))
+
+
+ print np.mean(AUC_Ada_right)
+ perf_right.append(np.mean(AUC_Ada_right))
+# set up bagging around each AdaBoost set
+print "=========================="
+print np.mean(perf_left)
+print np.mean(acc_left)
+print "=========================="
+print np.mean(perf_right)
+print np.mean(acc_right)
