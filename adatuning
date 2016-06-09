@@ -1,0 +1,130 @@
+# edited by Tianran Zhang at 2016-06-05
+#import necessary packages
+import numpy as np
+import matplotlib as plt
+import random
+import pandas
+from sklearn.feature_selection import SelectKBest
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.ensemble import BaggingClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import GradientBoostingClassifier
+from mlxtend.classifier import EnsembleVoteClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn import cross_validation
+from scipy.stats import randint as sp_randint
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import roc_auc_score
+from sklearn.metrics import accuracy_score
+from sklearn.svm import SVC
+# # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+
+# load training data
+print "Loading training data..."
+x_train = np.genfromtxt('BinaryTrain_data.csv', delimiter=',')
+train_labels_raw = np.genfromtxt('BinaryTrain_sbj_list.csv', delimiter=',', skip_header=1)
+y_train = train_labels_raw[:, 1]
+perf = []
+perf_fs = []
+acc1 = []
+acc2 = []
+for i in range(30):
+
+ # divide data into training and testing sets
+ Size_percentage = 0.20  # size of test set as a percentage in [0., 1.]
+ seed = random.randint(0, 2 ** 30)  # pseudo-random seed for split
+ x_train1, x_test1, y_train1, y_test1 = cross_validation.train_test_split(x_train, y_train, test_size=Size_percentage,
+                                                                         random_state=seed)
+
+ # load testing data
+ print "Loading the given test data..."
+ x_test = np.genfromtxt('BinaryTest_data.csv', delimiter=',')
+
+ #feature selection
+ #print "feature selection..."
+ #from sklearn import metrics
+ #from sklearn.ensemble import ExtraTreesClassifier
+ #model = ExtraTreesClassifier()
+ #model.fit(x_train, y_train)
+ # display the relative importance of each attribute
+ #print(model.feature_importances_)
+
+# adaboost classifier
+# initialize the  (defaults to using shallow decision trees
+# as the weak learner to boost) and optimize parameters using random search
+ train_new= SelectKBest(k=21).fit_transform(x_train, y_train)
+ print train_new.shape
+ print "Training adaboost DT..."
+ bdt = AdaBoostClassifier(DecisionTreeClassifier(max_depth=1),
+                         n_estimators=300,learning_rate=0.8)
+ bdt1 = AdaBoostClassifier(DecisionTreeClassifier(max_depth=1),
+                          n_estimators=300,learning_rate=0.8)
+ bdt2 = AdaBoostClassifier(DecisionTreeClassifier(max_depth=1),
+                          n_estimators=300,learning_rate=0.8)
+ bdt.fit(x_train, y_train)
+ bdt1.fit(x_train1, y_train1)
+ bdt2.fit(train_new, y_train)
+ print "Generating CV scores for Adaboost sampled training data..."
+
+
+ scores = cross_validation.cross_val_score(bdt1, x_train1, y_train1, cv=5)
+ print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
+ acc1.append(scores.mean())
+
+ print "Generating CV scores for Adaboost all train data "
+ scores = cross_validation.cross_val_score(bdt, x_train, y_train, cv=5)
+ print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
+ acc2.append(scores.mean())
+
+ AUC_Ada = []
+
+ for train_index, test_index in cross_validation.KFold(n=150, n_folds=5, shuffle=True,
+                               random_state=None):
+    x_train_cv, x_test_cv = x_train[train_index], x_train[test_index]
+    y_train_cv, y_test_cv = y_train[train_index], y_train[test_index]
+    bdt_cv = AdaBoostClassifier(DecisionTreeClassifier(max_depth=1),
+                          n_estimators=300,learning_rate=0.8)
+    bdt_cv.fit(x_train_cv, y_train_cv)
+    predictionAda = bdt_cv.predict(x_test_cv)
+
+    AUC_Ada.append(roc_auc_score(y_test_cv, predictionAda))
+
+
+ print np.mean(AUC_Ada)
+ perf.append(np.mean(AUC_Ada))
+
+
+
+ AUC_Ada_fs = []
+
+ for train_index, test_index in cross_validation.KFold(n=150, n_folds=5, shuffle=True,
+                               random_state=None):
+    x_train_cv, x_test_cv = train_new[train_index], train_new[test_index]
+    y_train_cv, y_test_cv = y_train[train_index], y_train[test_index]
+    bdt_cv_fs = AdaBoostClassifier(DecisionTreeClassifier(max_depth=1),
+                          n_estimators=300,learning_rate=0.8)
+    bdt_cv_fs.fit(x_train_cv, y_train_cv)
+    predictionAda_fs = bdt_cv_fs.predict(x_test_cv)
+
+    AUC_Ada_fs.append(roc_auc_score(y_test_cv, predictionAda_fs))
+
+
+ print np.mean(AUC_Ada_fs)
+ perf_fs.append(np.mean(AUC_Ada_fs))
+# set up bagging around each AdaBoost set
+print "=========================="
+print np.mean(perf)
+print np.mean(acc2)
+print np.mean(acc1)
+print "=========================="
+print np.mean(perf_fs)
+
+print "---------------"
+print "Adaboost DT:"
+predictions4 = bdt1.predict(x_test1)
+print confusion_matrix(y_test1,predictions4)
+print " AUC:"
+print roc_auc_score(y_test1,predictions4)
+print "accuracy:"
+print accuracy_score(y_test1,predictions4)
