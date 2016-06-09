@@ -1,0 +1,194 @@
+# edited by Tianran Zhang at 2016-06-05
+#import necessary packages
+import numpy as np
+import matplotlib as plt
+import random
+import pandas
+from sklearn.feature_selection import SelectKBest
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.ensemble import BaggingClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import GradientBoostingClassifier
+from mlxtend.classifier import EnsembleVoteClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn import cross_validation
+from scipy.stats import randint as sp_randint
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import roc_auc_score
+from sklearn.metrics import accuracy_score
+from sklearn.svm import SVC
+# # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# load training data
+print  "Loading training data..."
+#x_train_left=xlsx2csv.Xlsx2csv('leftFeatures(wed).xlsx')
+#x_train_right=xlsx2csv.Xlsx2csv('rightFeature(wed).xlsx')
+
+x_train_left = np.genfromtxt('lftfeature.csv', delimiter=',')
+#print x_train_left
+x_train_right = np.genfromtxt('rtfeature.csv', delimiter=',')
+
+train_labels_raw = np.genfromtxt('BinaryTrain_sbj_list.csv', delimiter=',', skip_header=1)
+y_train = train_labels_raw[:, 1]
+perf_left = []
+perf_right = []
+print "Adaboost model: "
+print "************************************"
+
+
+perf_left = []
+perf_right = []
+for i in range(60):
+
+ AUC_Ada_left = []
+
+ for train_index, test_index in cross_validation.KFold(n=150, n_folds=5, shuffle=True,
+                               random_state=None):
+    x_train_cv, x_test_cv = x_train_left[train_index], x_train_left[test_index]
+    y_train_cv, y_test_cv = y_train[train_index], y_train[test_index]
+    bdt_cv = AdaBoostClassifier(DecisionTreeClassifier(max_depth=1),
+                          n_estimators=300,learning_rate=0.8)
+    #print x_train_cv
+    bdt_cv.fit(x_train_cv, y_train_cv)
+    predictionAda = bdt_cv.predict(x_test_cv)
+
+    AUC_Ada_left.append(roc_auc_score(y_test_cv, predictionAda))
+
+ print "left cv result"
+ print np.mean(AUC_Ada_left)
+ perf_left.append(np.mean(AUC_Ada_left))
+
+
+ AUC_Ada_right = []
+
+ for train_index, test_index in cross_validation.KFold(n=150, n_folds=5, shuffle=True,
+                               random_state=None):
+    x_train_cv, x_test_cv = x_train_right[train_index], x_train_right[test_index]
+    y_train_cv, y_test_cv = y_train[train_index], y_train[test_index]
+    bdt_cv = AdaBoostClassifier(DecisionTreeClassifier(max_depth=1),
+                          n_estimators=300,learning_rate=0.8)
+    bdt_cv.fit(x_train_cv, y_train_cv)
+    predictionAda = bdt_cv.predict(x_test_cv)
+
+    AUC_Ada_right.append(roc_auc_score(y_test_cv, predictionAda))
+
+ print "right cv result"
+ print np.mean(AUC_Ada_right)
+ perf_right.append(np.mean(AUC_Ada_right))
+# set up bagging around each AdaBoost set
+print "=========================="
+print "performance for left hemisphere features: "
+print np.mean(perf_left)
+print "=========================="
+print "performance for right hemisphere features: "
+print np.mean(perf_right)
+
+
+
+print "                      "
+print "DecsionTreeswithBaggingModel: "
+print "************************************"
+perf_left = []
+perf_right = []
+for i in range(60):
+
+ AUC_bag_left = []
+
+ for train_index, test_index in cross_validation.KFold(n=150, n_folds=5, shuffle=True,
+                               random_state=None):
+    x_train_cv, x_test_cv = x_train_left[train_index], x_train_left[test_index]
+    y_train_cv, y_test_cv = y_train[train_index], y_train[test_index]
+    bagged_cv = BaggingClassifier(n_estimators=201,
+                            max_samples=0.14)
+    bagged_cv.fit(x_train_cv, y_train_cv)
+    predictionBag = bagged_cv.predict(x_test_cv)
+   # print predictionBag, y_test_cv
+   # print roc_auc_score(y_test_cv, predictionBag)
+    AUC_bag_left.append(roc_auc_score(y_test_cv, predictionBag))
+
+ #print "left cv result"
+ #print np.mean(AUC_bag_left)
+ perf_left.append(np.mean(AUC_bag_left))
+
+
+ AUC_bag_right = []
+
+ for train_index, test_index in cross_validation.KFold(n=150, n_folds=5, shuffle=True,
+                               random_state=None):
+    x_train_cv, x_test_cv = x_train_right[train_index], x_train_right[test_index]
+    y_train_cv, y_test_cv = y_train[train_index], y_train[test_index]
+    bagged_cv = BaggingClassifier(n_estimators=201,
+                            max_samples=0.14)
+    bagged_cv.fit(x_train_cv, y_train_cv)
+    predictionBag = bagged_cv.predict(x_test_cv)
+   # print predictionBag, y_test_cv
+   # print roc_auc_score(y_test_cv, predictionBag)
+    AUC_bag_right.append(roc_auc_score(y_test_cv, predictionBag))
+
+ #print "right cv result"
+ #print np.mean(AUC_bag_right)
+ perf_right.append(np.mean(AUC_bag_right))
+# set up bagging around each AdaBoost set
+print "=========================="
+print "performance for left hemisphere features: "
+print np.mean(perf_left)
+print "=========================="
+print "performance for right hemisphere features: "
+print np.mean(perf_right)
+
+
+print "                      "
+print "Random Forest Model: "
+print "************************************"
+perf_left = []
+perf_right = []
+for i in range(60):
+
+ AUC_rf_left = []
+
+ for train_index, test_index in cross_validation.KFold(n=150, n_folds=5, shuffle=True,
+                               random_state=None):
+    x_train_cv, x_test_cv = x_train_left[train_index], x_train_left[test_index]
+    y_train_cv, y_test_cv = y_train[train_index], y_train[test_index]
+    rfc_cv = RandomForestClassifier(n_estimators=400,
+                              max_features=40,
+                              min_samples_split=2,
+                              min_samples_leaf=1)
+
+    rfc_cv.fit(x_train_cv, y_train_cv)
+    predictionRF = rfc_cv.predict(x_test_cv)
+   # print predictionBag, y_test_cv
+   # print roc_auc_score(y_test_cv, predictionBag)
+
+    AUC_rf_left.append(roc_auc_score(y_test_cv, predictionRF))
+ #print "left cv result"
+# print np.mean(AUC_rf_left)
+ perf_left.append(np.mean(AUC_rf_left))
+
+
+ AUC_rf_right = []
+
+ for train_index, test_index in cross_validation.KFold(n=150, n_folds=5, shuffle=True,
+                               random_state=None):
+    x_train_cv, x_test_cv = x_train_right[train_index], x_train_right[test_index]
+    y_train_cv, y_test_cv = y_train[train_index], y_train[test_index]
+    rfc_cv = RandomForestClassifier(n_estimators=400,
+                              max_features=40,
+                              min_samples_split=2,
+                              min_samples_leaf=1)
+
+    rfc_cv.fit(x_train_cv, y_train_cv)
+    predictionRF = rfc_cv.predict(x_test_cv)
+   # print predictionBag, y_test_cv
+   # print roc_auc_score(y_test_cv, predictionBag)
+
+    AUC_rf_right.append(roc_auc_score(y_test_cv, predictionRF))
+ #print "right cv result"
+ #print np.mean(AUC_rf_right)
+ perf_right.append(np.mean(AUC_rf_right))
+# set up bagging around each AdaBoost set
+print "=========================="
+print "performance for left hemisphere features: "
+print np.mean(perf_left)
+print "=========================="
+print "performance for right hemisphere features: "
+print np.mean (perf_right)
