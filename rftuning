@@ -1,0 +1,75 @@
+# edited by Tianran Zhang at 2016-06-05
+#import necessary packages
+import numpy as np
+import matplotlib as plt
+import random
+import pandas
+from sklearn.feature_selection import SelectKBest
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.ensemble import BaggingClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import GradientBoostingClassifier
+from mlxtend.classifier import EnsembleVoteClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn import cross_validation
+from scipy.stats import randint as sp_randint
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import roc_auc_score
+from sklearn.metrics import accuracy_score
+from sklearn.svm import SVC
+# # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+# load training data
+print "Loading training data..."
+x_train = np.genfromtxt('BinaryTrain_data.csv', delimiter=',')
+train_labels_raw = np.genfromtxt('BinaryTrain_sbj_list.csv', delimiter=',', skip_header=1)
+y_train = train_labels_raw[:, 1]
+
+
+perf = []
+perf_fs = []
+
+for i in range(30):
+
+ # divide data into training and testing sets
+ Size_percentage = 0.20  # size of test set as a percentage in [0., 1.]
+ seed = random.randint(0, 2 ** 30)  # pseudo-random seed for split
+ x_train1, x_test1, y_train1, y_test1 = cross_validation.train_test_split(x_train, y_train, test_size=Size_percentage,
+                                                                         random_state=seed)
+
+ # load testing data
+ print "Loading the given test data..."
+ x_test = np.genfromtxt('BinaryTest_data.csv', delimiter=',')
+
+
+ train_new= SelectKBest(k=21).fit_transform(x_train, y_train)
+ print train_new.shape
+ print "Training Random Forest..."
+
+ AUC_rf = []
+
+ for train_index, test_index in cross_validation.KFold(n=150, n_folds=5, shuffle=True,
+                               random_state=None):
+    x_train_cv, x_test_cv = x_train[train_index], x_train[test_index]
+    y_train_cv, y_test_cv = y_train[train_index], y_train[test_index]
+    rfc_cv = RandomForestClassifier(n_estimators=300,
+                              max_features=40,
+                              min_samples_split=2,
+                              min_samples_leaf=1)
+
+    rfc_cv.fit(x_train_cv, y_train_cv)
+    predictionRF = rfc_cv.predict(x_test_cv)
+   # print predictionBag, y_test_cv
+   # print roc_auc_score(y_test_cv, predictionBag)
+
+    AUC_rf.append(roc_auc_score(y_test_cv, predictionRF))
+
+
+ print np.mean(AUC_rf)
+ perf.append(np.mean(AUC_rf))
+
+
+
+print "=========================="
+print np.mean(perf)
+print "=========================="
